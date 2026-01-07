@@ -13,7 +13,7 @@ export const AIEngineerAnimation = ({ isPlaying }: Props) => {
     
     const timer = setInterval(() => {
       setStep(prev => (prev < 6 ? prev + 1 : prev));
-    }, 2200);
+    }, 4000);
     
     return () => clearInterval(timer);
   }, [isPlaying]);

@@ -14,7 +14,7 @@ export const ComputerVisionAnimation = ({ isPlaying }: Props) => {
     
     const timer = setInterval(() => {
       setStep(prev => (prev < 5 ? prev + 1 : prev));
-    }, 2200);
+    }, 4000);
     
     return () => clearInterval(timer);
   }, [isPlaying]);
