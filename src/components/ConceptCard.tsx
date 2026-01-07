@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Play } from 'lucide-react';
 import type { AIConcept } from '@/data/aiConcepts';
+import { conceptIconMap } from '@/components/icons/ConceptIcons';
 
 interface ConceptCardProps {
   concept: AIConcept;
@@ -9,6 +10,8 @@ interface ConceptCardProps {
 }
 
 export const ConceptCard = ({ concept, index, onStart }: ConceptCardProps) => {
+  const IconComponent = conceptIconMap[concept.id];
+
   return (
     <motion.div
       className="concept-card p-6 relative"
@@ -18,8 +21,16 @@ export const ConceptCard = ({ concept, index, onStart }: ConceptCardProps) => {
       whileHover={{ scale: 1.02 }}
     >
       {/* Decorative stars */}
-      <div className="absolute top-3 right-3 text-warning text-lg opacity-70">⭐</div>
-      <div className="absolute bottom-4 right-8 text-warning text-sm opacity-50">✨</div>
+      <div className="absolute top-3 right-3">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L13.5 9L20 10L13.5 11L12 18L10.5 11L4 10L10.5 9L12 2Z" fill="hsl(var(--warning))" opacity="0.7" />
+        </svg>
+      </div>
+      <div className="absolute bottom-4 right-8">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L13.5 9L20 10L13.5 11L12 18L10.5 11L4 10L10.5 9L12 2Z" fill="hsl(var(--warning))" opacity="0.5" />
+        </svg>
+      </div>
       
       {/* Decorative corner shape */}
       <div className="absolute bottom-0 right-0 w-20 h-20 bg-bubble-1 rounded-tl-[60px] opacity-30" />
@@ -27,7 +38,7 @@ export const ConceptCard = ({ concept, index, onStart }: ConceptCardProps) => {
       <div className="flex items-start gap-4 relative z-10">
         {/* Icon */}
         <div className="icon-bubble shrink-0">
-          <span className="text-3xl">{concept.icon}</span>
+          {IconComponent ? <IconComponent size={36} /> : <span className="text-3xl">{concept.icon}</span>}
         </div>
         
         {/* Content */}

@@ -1,7 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Volume2, VolumeX } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { AIConcept } from '@/data/aiConcepts';
+import { conceptIconMap } from '@/components/icons/ConceptIcons';
+import { useAudioNarration } from '@/hooks/useAudioNarration';
 import { AutomationAnimation } from './AutomationAnimation';
 import { RuleBasedAnimation } from './RuleBasedAnimation';
 import { AIAnimation } from './AIAnimation';
@@ -45,16 +47,42 @@ const animationComponents: Record<string, React.ComponentType<{ isPlaying: boole
 export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const { playNarration, stopNarration, isLoading: audioLoading } = useAudioNarration();
+  const hasPlayedAudioRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) {
       setIsPlaying(false);
+      stopNarration();
+      hasPlayedAudioRef.current = false;
     }
-  }, [isOpen]);
+  }, [isOpen, stopNarration]);
+
+  // Play narration when animation starts
+  useEffect(() => {
+    if (isPlaying && audioEnabled && concept && !hasPlayedAudioRef.current) {
+      hasPlayedAudioRef.current = true;
+      const narrationText = `Let's learn about ${concept.term}. ${concept.definition}`;
+      playNarration(narrationText);
+    }
+  }, [isPlaying, audioEnabled, concept, playNarration]);
+
+  const handleClose = () => {
+    stopNarration();
+    onClose();
+  };
+
+  const toggleAudio = () => {
+    if (audioEnabled) {
+      stopNarration();
+    }
+    setAudioEnabled(!audioEnabled);
+  };
 
   if (!concept) return null;
 
   const AnimationComponent = animationComponents[concept.id];
+  const IconComponent = conceptIconMap[concept.id];
 
   return (
     <AnimatePresence>
@@ -68,7 +96,7 @@ export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps
           {/* Backdrop */}
           <motion.div
             className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
-            onClick={onClose}
+            onClick={handleClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -76,17 +104,17 @@ export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps
           
           {/* Modal */}
           <motion.div
-            className="relative w-full max-w-4xl bg-card rounded-3xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-4xl max-h-[90vh] bg-card rounded-3xl shadow-2xl overflow-hidden flex flex-col"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border">
+            {/* Header - Fixed */}
+            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
               <div className="flex items-center gap-4">
                 <div className="icon-bubble">
-                  <span className="text-3xl">{concept.icon}</span>
+                  {IconComponent ? <IconComponent size={36} /> : <span className="text-3xl">{concept.icon}</span>}
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-foreground font-quicksand">
@@ -100,18 +128,18 @@ export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps
               
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setAudioEnabled(!audioEnabled)}
-                  className="p-2 rounded-full hover:bg-muted transition-colors"
+                  onClick={toggleAudio}
+                  className={`p-2 rounded-full hover:bg-muted transition-colors ${audioLoading ? 'animate-pulse' : ''}`}
                   title={audioEnabled ? 'Mute audio' : 'Enable audio'}
                 >
                   {audioEnabled ? (
-                    <Volume2 className="w-5 h-5 text-muted-foreground" />
+                    <Volume2 className="w-5 h-5 text-primary" />
                   ) : (
                     <VolumeX className="w-5 h-5 text-muted-foreground" />
                   )}
                 </button>
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="p-2 rounded-full hover:bg-muted transition-colors"
                 >
                   <X className="w-5 h-5 text-muted-foreground" />
@@ -119,64 +147,69 @@ export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps
               </div>
             </div>
             
-            {/* Animation Area */}
-            <div className="relative min-h-[400px] bg-gradient-to-b from-background to-card p-8">
-              {/* Decorative shapes */}
-              <div className="absolute top-4 right-4 w-16 h-16 bg-bubble-1 rounded-full opacity-30" />
-              <div className="absolute bottom-8 left-8 w-12 h-12 bg-bubble-2 rounded-full opacity-30" />
-              
-              {!isPlaying ? (
-                /* Start Screen */
-                <motion.div
-                  className="flex flex-col items-center justify-center h-full min-h-[350px]"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
+            {/* Animation Area - Scrollable */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="relative min-h-[400px] bg-gradient-to-b from-background to-card p-8">
+                {/* Decorative shapes */}
+                <div className="absolute top-4 right-4 w-16 h-16 bg-bubble-1 rounded-full opacity-30" />
+                <div className="absolute bottom-8 left-8 w-12 h-12 bg-bubble-2 rounded-full opacity-30" />
+                
+                {!isPlaying ? (
+                  /* Start Screen */
                   <motion.div
-                    className="text-8xl mb-8"
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
+                    className="flex flex-col items-center justify-center h-full min-h-[350px]"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                   >
-                    {concept.icon}
+                    <motion.div
+                      className="mb-8"
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      {IconComponent ? <IconComponent size={96} /> : <span className="text-8xl">{concept.icon}</span>}
+                    </motion.div>
+                    <h3 className="text-xl font-semibold text-foreground mb-4 text-center font-quicksand">
+                      Ready to learn about {concept.term}?
+                    </h3>
+                    <p className="text-muted-foreground text-center max-w-md mb-8">
+                      {concept.definition}
+                    </p>
+                    <button
+                      onClick={() => setIsPlaying(true)}
+                      className="start-button text-lg px-8 py-3"
+                    >
+                      <span className="text-2xl">▶</span>
+                      <span>Start Learning</span>
+                    </button>
                   </motion.div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4 text-center font-quicksand">
-                    Ready to learn about {concept.term}?
-                  </h3>
-                  <p className="text-muted-foreground text-center max-w-md mb-8">
-                    {concept.definition}
-                  </p>
-                  <button
-                    onClick={() => setIsPlaying(true)}
-                    className="start-button text-lg px-8 py-3"
-                  >
-                    <span className="text-2xl">▶</span>
-                    <span>Start Learning</span>
-                  </button>
-                </motion.div>
-              ) : (
-                /* Animation Content */
-                AnimationComponent && <AnimationComponent isPlaying={isPlaying} />
+                ) : (
+                  /* Animation Content */
+                  AnimationComponent && <AnimationComponent isPlaying={isPlaying} />
+                )}
+              </div>
+              
+              {/* Footer with examples - Inside scrollable area */}
+              {concept.examples && concept.examples.length > 0 && (
+                <div className="p-6 bg-muted/30 border-t border-border">
+                  <h4 className="text-sm font-semibold text-foreground mb-3 font-quicksand flex items-center gap-2">
+                    <div className="w-6 h-6 bg-warning/20 rounded-lg flex items-center justify-center">
+                      <span className="text-warning text-xs">💡</span>
+                    </div>
+                    Real-world examples:
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {concept.examples.map((example, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1.5 rounded-full bg-card text-sm text-muted-foreground border border-border"
+                      >
+                        {example}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-            
-            {/* Footer with examples */}
-            {concept.examples && concept.examples.length > 0 && (
-              <div className="p-6 bg-muted/30 border-t border-border">
-                <h4 className="text-sm font-semibold text-foreground mb-3 font-quicksand">
-                  💡 Real-world examples:
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {concept.examples.map((example, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-3 py-1.5 rounded-full bg-card text-sm text-muted-foreground border border-border"
-                    >
-                      {example}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </motion.div>
         </motion.div>
       )}
