@@ -48,36 +48,84 @@ export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const { playNarration, stopNarration, isLoading: audioLoading } = useAudioNarration();
-  const hasPlayedAudioRef = useRef(false);
+
+  const narrationTokenRef = useRef(0);
+  const narrationAbortRef = useRef<AbortController | null>(null);
+
+  const stopNarrationSequence = () => {
+    narrationTokenRef.current += 1;
+    narrationAbortRef.current?.abort();
+    narrationAbortRef.current = null;
+    stopNarration();
+  };
 
   useEffect(() => {
     if (!isOpen) {
       setIsPlaying(false);
-      stopNarration();
-      hasPlayedAudioRef.current = false;
+      stopNarrationSequence();
     }
-  }, [isOpen, stopNarration]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
-  // Play narration when animation starts
   useEffect(() => {
-    if (isPlaying && audioEnabled && concept && !hasPlayedAudioRef.current) {
-      hasPlayedAudioRef.current = true;
-      const narrationText = `Let's learn about ${concept.term}. ${concept.definition}`;
-      playNarration(narrationText);
-    }
+    if (!isPlaying || !audioEnabled || !concept) return;
+
+    const myToken = narrationTokenRef.current + 1;
+    narrationTokenRef.current = myToken;
+
+    const controller = new AbortController();
+    narrationAbortRef.current = controller;
+
+    const run = async () => {
+      // slight delay so visuals start first
+      await new Promise((r) => setTimeout(r, 350));
+      if (controller.signal.aborted || narrationTokenRef.current !== myToken) return;
+
+      // Simple per-step narration (short sentences) to match animation pace.
+      const segments: string[] =
+        concept.id === 'rule-based'
+          ? [
+              'Rule-based systems follow fixed IF-THEN rules.',
+              'First, check a condition.',
+              'Then pick the matching action.',
+              'Same input, same output. No learning involved.',
+            ]
+          : [`Let's learn about ${concept.term}.`, concept.definition];
+
+      for (const segment of segments) {
+        if (controller.signal.aborted || narrationTokenRef.current !== myToken) return;
+        await playNarration(segment, { signal: controller.signal });
+        // small gap between segments
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    };
+
+    run();
+
+    return () => {
+      controller.abort();
+    };
   }, [isPlaying, audioEnabled, concept, playNarration]);
 
   const handleClose = () => {
-    stopNarration();
+    stopNarrationSequence();
     onClose();
   };
 
   const toggleAudio = () => {
-    if (audioEnabled) {
-      stopNarration();
-    }
-    setAudioEnabled(!audioEnabled);
+    setAudioEnabled((prev) => {
+      if (prev) {
+        stopNarrationSequence();
+        return false;
+      }
+      // turning audio ON: if animation already running, start narration sequence now
+      if (isPlaying) {
+        // effect will run because audioEnabled changes to true
+      }
+      return true;
+    });
   };
+
 
   if (!concept) return null;
 
