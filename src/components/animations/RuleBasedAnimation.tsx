@@ -47,7 +47,7 @@ export const RuleBasedAnimation = ({ isPlaying }: Props) => {
 
     const t = setInterval(() => {
       setActive((a) => (a + 1) % steps.length);
-    }, 2200);
+    }, 4000);
 
     return () => clearInterval(t);
   }, [isPlaying, steps.length]);

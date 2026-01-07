@@ -13,7 +13,7 @@ export const GenerativeAIAnimation = ({ isPlaying }: Props) => {
     
     const timer = setInterval(() => {
       setStep(prev => (prev < 6 ? prev + 1 : prev));
-    }, 2000);
+    }, 4000);
     
     return () => clearInterval(timer);
   }, [isPlaying]);

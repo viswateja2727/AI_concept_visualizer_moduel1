@@ -13,7 +13,7 @@ export const InputAnimation = ({ isPlaying }: Props) => {
     
     const timer = setInterval(() => {
       setStep(prev => (prev < 4 ? prev + 1 : prev));
-    }, 2500);
+    }, 4000);
     
     return () => clearInterval(timer);
   }, [isPlaying]);
