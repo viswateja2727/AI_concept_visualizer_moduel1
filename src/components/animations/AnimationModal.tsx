@@ -1,9 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { AIConcept } from '@/data/aiConcepts';
 import { conceptIconMap } from '@/components/icons/ConceptIcons';
-import { useAudioNarration } from '@/hooks/useAudioNarration';
 import { AutomationAnimation } from './AutomationAnimation';
 import { RuleBasedAnimation } from './RuleBasedAnimation';
 import { AIAnimation } from './AIAnimation';
@@ -46,86 +45,12 @@ const animationComponents: Record<string, React.ComponentType<{ isPlaying: boole
 
 export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const { playNarration, stopNarration, isLoading: audioLoading } = useAudioNarration();
-
-  const narrationTokenRef = useRef(0);
-  const narrationAbortRef = useRef<AbortController | null>(null);
-
-  const stopNarrationSequence = () => {
-    narrationTokenRef.current += 1;
-    narrationAbortRef.current?.abort();
-    narrationAbortRef.current = null;
-    stopNarration();
-  };
 
   useEffect(() => {
     if (!isOpen) {
       setIsPlaying(false);
-      stopNarrationSequence();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
-  useEffect(() => {
-    if (!isPlaying || !audioEnabled || !concept) return;
-
-    const myToken = narrationTokenRef.current + 1;
-    narrationTokenRef.current = myToken;
-
-    const controller = new AbortController();
-    narrationAbortRef.current = controller;
-
-    const run = async () => {
-      // slight delay so visuals start first
-      await new Promise((r) => setTimeout(r, 350));
-      if (controller.signal.aborted || narrationTokenRef.current !== myToken) return;
-
-      // Simple per-step narration (short sentences) to match animation pace.
-      const segments: string[] =
-        concept.id === 'rule-based'
-          ? [
-              'Rule-based systems follow fixed IF-THEN rules.',
-              'First, check a condition.',
-              'Then pick the matching action.',
-              'Same input, same output. No learning involved.',
-            ]
-          : [`Let's learn about ${concept.term}.`, concept.definition];
-
-      for (const segment of segments) {
-        if (controller.signal.aborted || narrationTokenRef.current !== myToken) return;
-        await playNarration(segment);
-        // small gap between segments
-        await new Promise((r) => setTimeout(r, 250));
-      }
-    };
-
-    run();
-
-    return () => {
-      controller.abort();
-    };
-  }, [isPlaying, audioEnabled, concept, playNarration]);
-
-  const handleClose = () => {
-    stopNarrationSequence();
-    onClose();
-  };
-
-  const toggleAudio = () => {
-    setAudioEnabled((prev) => {
-      if (prev) {
-        stopNarrationSequence();
-        return false;
-      }
-      // turning audio ON: if animation already running, start narration sequence now
-      if (isPlaying) {
-        // effect will run because audioEnabled changes to true
-      }
-      return true;
-    });
-  };
-
 
   if (!concept) return null;
 
@@ -144,7 +69,7 @@ export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps
           {/* Backdrop */}
           <motion.div
             className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
-            onClick={handleClose}
+            onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -174,25 +99,12 @@ export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={toggleAudio}
-                  className={`p-2 rounded-full hover:bg-muted transition-colors ${audioLoading ? 'animate-pulse' : ''}`}
-                  title={audioEnabled ? 'Mute audio' : 'Enable audio'}
-                >
-                  {audioEnabled ? (
-                    <Volume2 className="w-5 h-5 text-primary" />
-                  ) : (
-                    <VolumeX className="w-5 h-5 text-muted-foreground" />
-                  )}
-                </button>
-                <button
-                  onClick={handleClose}
-                  className="p-2 rounded-full hover:bg-muted transition-colors"
-                >
-                  <X className="w-5 h-5 text-muted-foreground" />
-                </button>
-              </div>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full hover:bg-muted transition-colors"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
             </div>
             
             {/* Animation Area - Scrollable */}
