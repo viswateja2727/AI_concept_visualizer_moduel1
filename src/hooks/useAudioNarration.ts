@@ -66,7 +66,7 @@ export const useAudioNarration = () => {
 
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-tts`,
           {
             method: "POST",
             headers: {
