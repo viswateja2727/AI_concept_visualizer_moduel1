@@ -12,6 +12,7 @@ import { AIModelAnimation } from './AIModelAnimation';
 import { AIPipelineAnimation } from './AIPipelineAnimation';
 import { PredictionAnimation } from './PredictionAnimation';
 import { LanguageModelAnimation } from './LanguageModelAnimation';
+import { LLMPipelineAnimation } from './LLMPipelineAnimation';
 import { ComputerVisionAnimation } from './ComputerVisionAnimation';
 import { SearchSystemsAnimation } from './SearchSystemsAnimation';
 import { ChatbotsAnimation } from './ChatbotsAnimation';
@@ -35,6 +36,7 @@ const animationComponents: Record<string, React.ComponentType<{ isPlaying: boole
   'ai-pipeline': AIPipelineAnimation,
   'prediction-models': PredictionAnimation,
   'language-models': LanguageModelAnimation,
+  'llm-pipeline': LLMPipelineAnimation,
   'computer-vision': ComputerVisionAnimation,
   'search-systems': SearchSystemsAnimation,
   'chatbots': ChatbotsAnimation,
