@@ -94,7 +94,7 @@ export const AnimationModal = ({ concept, isOpen, onClose }: AnimationModalProps
 
       for (const segment of segments) {
         if (controller.signal.aborted || narrationTokenRef.current !== myToken) return;
-        await playNarration(segment, { signal: controller.signal });
+        await playNarration(segment);
         // small gap between segments
         await new Promise((r) => setTimeout(r, 250));
       }

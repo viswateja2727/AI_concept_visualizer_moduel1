@@ -1,129 +1,101 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type PlayOptions = {
-  signal?: AbortSignal;
-};
-
 export const useAudioNarration = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioUrlRef = useRef<string | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const currentTextRef = useRef<string>("");
-  const abortRef = useRef<AbortController | null>(null);
-  const playTokenRef = useRef(0);
-
-  const cleanupAudio = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-      audioRef.current = null;
-    }
-    if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = null;
-    }
-  }, []);
 
   const stopNarration = useCallback(() => {
-    playTokenRef.current += 1;
-
-    abortRef.current?.abort();
-    abortRef.current = null;
-
-    cleanupAudio();
-
+    window.speechSynthesis.cancel();
+    utteranceRef.current = null;
     setIsPlaying(false);
     setIsLoading(false);
     currentTextRef.current = "";
-  }, [cleanupAudio]);
+  }, []);
 
   const playNarration = useCallback(
-    async (text: string, options: PlayOptions = {}) => {
-      // interrupt any pending fetch/play
+    async (text: string) => {
+      // Stop any ongoing narration
       stopNarration();
 
       // Skip if same text is requested while already playing
       if (currentTextRef.current === text && isPlaying) return;
 
-      const myToken = playTokenRef.current;
       currentTextRef.current = text;
-
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      // If caller provides a signal, mirror its abort into ours
-      if (options.signal) {
-        if (options.signal.aborted) controller.abort();
-        else {
-          const onAbort = () => controller.abort();
-          options.signal.addEventListener("abort", onAbort, { once: true });
-        }
-      }
-
       setIsLoading(true);
 
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-tts`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({ text }),
-            signal: controller.signal,
-          }
+      // Check if speech synthesis is supported
+      if (!window.speechSynthesis) {
+        console.error("Speech synthesis not supported in this browser");
+        setIsLoading(false);
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utteranceRef.current = utterance;
+
+      // Get available voices and select a female voice
+      const setVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        // Prefer female voices - look for common female voice names
+        const femaleVoice = voices.find(
+          (voice) =>
+            voice.name.toLowerCase().includes("female") ||
+            voice.name.toLowerCase().includes("samantha") ||
+            voice.name.toLowerCase().includes("victoria") ||
+            voice.name.toLowerCase().includes("karen") ||
+            voice.name.toLowerCase().includes("moira") ||
+            voice.name.toLowerCase().includes("tessa") ||
+            voice.name.toLowerCase().includes("fiona") ||
+            voice.name.includes("Google US English") ||
+            (voice.name.includes("en") && voice.name.includes("Female"))
         );
 
-        if (!response.ok) throw new Error(`TTS request failed: ${response.status}`);
-        if (controller.signal.aborted || myToken !== playTokenRef.current) return;
-
-        const audioBlob = await response.blob();
-        if (controller.signal.aborted || myToken !== playTokenRef.current) return;
-
-        const audioUrl = URL.createObjectURL(audioBlob);
-        audioUrlRef.current = audioUrl;
-
-        const audio = new Audio(audioUrl);
-        audioRef.current = audio;
-
-        setIsPlaying(true);
-
-        await new Promise<void>((resolve) => {
-          audio.onended = () => resolve();
-          audio.onerror = () => resolve();
-
-          // We keep this separate so abort always stops playback immediately
-          controller.signal.addEventListener(
-            "abort",
-            () => {
-              resolve();
-            },
-            { once: true }
-          );
-
-          audio
-            .play()
-            .catch(() => resolve());
-        });
-      } catch (error) {
-        // AbortError is expected when user closes/mutes.
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          console.error("Audio narration error:", error);
+        if (femaleVoice) {
+          utterance.voice = femaleVoice;
+        } else if (voices.length > 0) {
+          // Fall back to first English voice or first available
+          const englishVoice = voices.find((v) => v.lang.startsWith("en"));
+          utterance.voice = englishVoice || voices[0];
         }
-      } finally {
-        if (myToken === playTokenRef.current) {
-          setIsPlaying(false);
-          setIsLoading(false);
-          cleanupAudio();
-        }
+      };
+
+      // Voices may not be loaded immediately
+      if (window.speechSynthesis.getVoices().length > 0) {
+        setVoice();
+      } else {
+        window.speechSynthesis.onvoiceschanged = setVoice;
       }
+
+      // Configure voice settings for a smooth, teaching-friendly pace
+      utterance.rate = 0.9; // Slightly slower for clarity
+      utterance.pitch = 1.1; // Slightly higher pitch for warmth
+      utterance.volume = 1;
+
+      utterance.onstart = () => {
+        setIsLoading(false);
+        setIsPlaying(true);
+      };
+
+      utterance.onend = () => {
+        setIsPlaying(false);
+        currentTextRef.current = "";
+      };
+
+      utterance.onerror = (event) => {
+        // Ignore 'interrupted' errors as they're expected when stopping
+        if (event.error !== "interrupted") {
+          console.error("Speech synthesis error:", event.error);
+        }
+        setIsPlaying(false);
+        setIsLoading(false);
+      };
+
+      window.speechSynthesis.speak(utterance);
     },
-    [cleanupAudio, isPlaying, stopNarration]
+    [isPlaying, stopNarration]
   );
 
   useEffect(() => {
@@ -137,4 +109,3 @@ export const useAudioNarration = () => {
     isLoading,
   };
 };
-
