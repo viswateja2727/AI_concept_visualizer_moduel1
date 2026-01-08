@@ -125,17 +125,6 @@ export const aiConcepts: AIConcept[] = [
     examples: ['ChatGPT answering questions', 'Google Translate', 'Auto-complete on your phone']
   },
   {
-    id: 'llm-pipeline',
-    term: 'LLM Pipeline',
-    definition: 'The step-by-step process inside a Large Language Model: your prompt becomes tokens, then embeddings, passes through transformer layers, produces logits, applies softmax, and predicts the next word - all within a context window memory limit.',
-    icon: '🔗',
-    category: 'Model Types',
-    order: 10,
-    buttonText: 'See Inside LLM',
-    animationType: 'flow',
-    examples: ['Prompt → Tokens → Embeddings → Output', 'Context window limits memory', 'Softmax picks the best word']
-  },
-  {
     id: 'computer-vision',
     term: 'Computer Vision',
     definition: 'A type of AI model that is taught to "see" by processing images. It is used for tasks like detecting plastic in oceans, identifying tumors in X-rays, and enabling self-driving cars.',
